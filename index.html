@@ -1,0 +1,128 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>AI Developer Chatbot Assistant</title>
+    <link href="https://cdn.jsdelivr.net/npm/tailwindcss@2.2.3/dist/tailwind.min.css" rel="stylesheet">
+    <style>
+      .chat-header {
+        background-color: #6b46c1;
+        color: white;
+        padding: 1rem;
+        text-align: center;
+        border-radius: 0.5rem;
+        font-weight: bold;
+      }
+      
+      .chatbox {
+        background-color: #faf089;
+        border-radius: 0.5rem;
+        max-height: 60vh;
+        overflow-y: auto;
+        padding: 1rem;
+      }
+      
+      .message {
+        background-color: #f7fafc;
+        border: 2px dashed #805ad5;
+        border-radius: 1rem;
+      }
+      
+      .input-field {
+        background-color: #d6bcfa;
+        color: #000;
+      }
+
+      .send-button {
+        background-color: #48bb78;
+      }
+
+      .send-button:hover {
+        background-color: #2f855a;
+      }
+    </style>
+  </head>
+  <body class="bg-purple-100 min-h-screen flex justify-center items-center">
+    <div class="w-full max-w-2xl px-2">
+      <div class="chat-header">AI Developer Chatbot Assistant</div>
+      <div id="chatbox" class="chatbox flex flex-col items-start mt-5"></div>
+      <div class="flex flex-row my-5">
+        <input id="messageInput" type="text" class="input-field shadow flex-grow rounded p-2 mr-2" placeholder="Type your message here..." />
+        <button id="sendButton" class="send-button rounded py-2 px-4 text-white font-bold">
+          Send
+        </button>
+      </div>
+    </div>
+    <script>
+      const chatbox = document.getElementById("chatbox");
+      const messageInput = document.getElementById("messageInput");
+      const sendButton = document.getElementById("sendButton");
+      const chatId = crypto.randomUUID();
+
+      let receiving = false;
+      const systemPrompt = "You are a knowledgeable software development mentor, ready to assist with debugging, code generation, best practices, frameworks, version control, algorithms, web/mobile/backend development, and performance/security optimizations.";
+
+      function createMessageElement(text, alignment) {
+        const messageElement = document.createElement("div");
+        messageElement.className = `message inline-block my-2.5 p-2.5 ${alignment === "left" ? "self-start" : "self-end"}`;
+        messageElement.textContent = text;
+        return messageElement;
+      }
+
+      function connectWebSocket(message) {
+        receiving = true;
+        const url = "wss://backend.buildpicoapps.com/api/chatbot/chat";
+        const websocket = new WebSocket(url);
+
+        websocket.addEventListener("open", () => {
+          websocket.send(
+            JSON.stringify({
+              chatId: chatId,
+              appId: "around-away",
+              systemPrompt: systemPrompt,
+              message: message,
+            })
+          );
+        });
+
+        const messageElement = createMessageElement("", "left");
+        chatbox.appendChild(messageElement);
+
+        websocket.onmessage = (event) => {
+          messageElement.innerText += event.data;
+          chatbox.scrollTop = chatbox.scrollHeight;
+        };
+
+        websocket.onclose = (event) => {
+          if (event.code === 1000) {
+            receiving = false;
+          } else {
+            messageElement.textContent += " Error getting response from server. Refresh the page and try again.";
+            chatbox.scrollTop = chatbox.scrollHeight;
+            receiving = false;
+          }
+        };
+      }
+
+      sendButton.addEventListener("click", () => {
+        if (!receiving && messageInput.value.trim() !== "") {
+          const messageText = messageInput.value.trim();
+          messageInput.value = "";
+          const messageElement = createMessageElement(messageText, "right");
+          chatbox.appendChild(messageElement);
+          chatbox.scrollTop = chatbox.scrollHeight;
+
+          connectWebSocket(messageText);
+        }
+      });
+
+      messageInput.addEventListener("keydown", (event) => {
+        if (event.key === "Enter" && !receiving && messageInput.value.trim() !== "") {
+          event.preventDefault();
+          sendButton.click();
+        }
+      });
+    </script>
+  </body>
+</html>
